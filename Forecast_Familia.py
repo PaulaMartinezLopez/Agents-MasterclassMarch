@@ -62,13 +62,19 @@ if uploaded_file:
     st.subheader("📖 Análisis AI para esta categoría")
     data_json = df_categoria.to_json(orient="records", date_format="iso")
 
-    prompt = f"""
-    Actúa como un analista de ventas. Con base en los siguientes datos históricos para la categoría '{categoria_sel}':
-    - Describe la evolución de ingresos.
-    - Identifica estacionalidad o tendencias.
-    - Comenta la previsión para 2025 y recomendaciones para el negocio.
-    Datos: {data_json}
+     prompt = f"""
+    You are a sales analyst working for a company specialized in frozen seafood (fish and shellfish). 
+    Based on the following historical sales data for the product category '{categoria_sel}':
+    - Describe the overall revenue evolution.
+    - Identify relevant seasonal patterns (e.g. Easter, summer, Christmas).
+    - Detect any trends or irregularities.
+    - Comment on the forecast for 2025.
+    - Provide actionable recommendations to increase sales performance and prepare for seasonal demand.
+    
+    Sales data (JSON format):
+    {data_json}
     """
+
 
     client = Groq(api_key=GROQ_API_KEY)
     response = client.chat.completions.create(
