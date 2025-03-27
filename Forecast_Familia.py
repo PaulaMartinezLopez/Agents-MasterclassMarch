@@ -58,28 +58,45 @@ if uploaded_file:
 
     st.plotly_chart(fig, use_container_width=True)
 
+    # 📋 Ingresos anuales - incluyendo 2025 forecast
+    st.markdown("### 📊 Ingresos anuales - Categoría seleccionada (Histórico + Forecast)")
+
+    df_categoria['Año'] = df_categoria['ds'].dt.year
+    df_hist = df_categoria.groupby('Año', as_index=False)['y'].sum()
+    df_hist = df_hist.rename(columns={'y': 'Ingresos (€)'})
+    df_hist['Origen'] = 'Histórico'
+
+    forecast_2025 = forecast.copy()
+    forecast_2025['Año'] = forecast_2025['ds'].dt.year
+    df_fcast = forecast_2025[forecast_2025['Año'] == 2025]
+    df_fcast = df_fcast.groupby('Año', as_index=False)['yhat'].sum()
+    df_fcast = df_fcast.rename(columns={'yhat': 'Ingresos (€)'})
+    df_fcast['Origen'] = 'Forecast'
+
+    df_final = pd.concat([df_hist, df_fcast], ignore_index=True)
+    st.dataframe(df_final.style.format({'Ingresos (€)': '€{:,.2f}'}), use_container_width=True)
+
     # 🤖 Comentario automático con IA
     st.subheader("📖 Análisis AI para esta categoría")
     data_json = df_categoria.to_json(orient="records", date_format="iso")
 
     prompt = f"""
-    You are a sales analyst working for a company specialized in frozen seafood (fish and shellfish). 
-    Based on the following historical sales data for the product category '{categoria_sel}':
-    - Describe the overall revenue evolution.
-    - Identify relevant seasonal patterns (e.g. Easter, summer, Christmas).
-    - Detect any trends or irregularities.
-    - Comment on the forecast for 2025.
-    - Provide actionable recommendations to increase sales performance and prepare for seasonal demand.
-    
-    Sales data (JSON format):
-    {data_json}
-    """
+You are a sales analyst working for a company specialized in frozen seafood (fish and shellfish). 
+Based on the following historical sales data for the product category '{categoria_sel}':
+- Describe the overall revenue evolution.
+- Identify relevant seasonal patterns (e.g. Easter, summer, Christmas).
+- Detect any trends or irregularities.
+- Comment on the forecast for 2025.
+- Provide actionable recommendations to increase sales performance and prepare for seasonal demand.
 
+Sales data (JSON format):
+{data_json}
+"""
 
     client = Groq(api_key=GROQ_API_KEY)
     response = client.chat.completions.create(
         messages=[
-            {"role": "system", "content": "Eres un analista de negocio especializado en predicción de ventas por categoría."},
+            {"role": "system", "content": "You are a business analyst specialized in sales forecasting by product category."},
             {"role": "user", "content": prompt}
         ],
         model="llama3-8b-8192",
@@ -87,4 +104,3 @@ if uploaded_file:
 
     commentary = response.choices[0].message.content
     st.write(commentary)
-
