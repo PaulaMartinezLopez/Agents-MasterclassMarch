@@ -28,9 +28,15 @@ if uploaded_file:
     df_raw['ds'] = pd.to_datetime(df_raw['date_str'], format='%Y-%b')  # Ej: 2023-Jan
     df_raw = df_raw[['ds', 'Categoria', 'Eur']].rename(columns={'Eur': 'y'})
 
-    # 🎛️ Selector de categoría
-    categoria_sel = st.selectbox("🗂️ Elige la categoría", sorted(df_raw['Categoria'].unique()))
+ # 🎛️ Selector de categoría (con opción 'Todas')
+categorias = sorted(df_raw['Categoria'].unique())
+categoria_sel = st.selectbox("🗂️ Elige la categoría", ["Todas"] + categorias)
+
+if categoria_sel == "Todas":
+    df_categoria = df_raw.groupby('ds', as_index=False)['y'].sum()
+else:
     df_categoria = df_raw[df_raw['Categoria'] == categoria_sel].copy()
+
 
     # 🔮 Forecast con Prophet
     m = Prophet()
