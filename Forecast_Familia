@@ -4,76 +4,81 @@ import numpy as np
 import os
 from dotenv import load_dotenv
 from prophet import Prophet
-from prophet.plot import plot_plotly
 import plotly.graph_objects as go
 from groq import Groq
 
-# Load API Key
+# 🎯 Configuración inicial
+st.set_page_config(page_title="Forecast per Categoria", page_icon="🦑", layout="wide")
+st.title("🧠 Forecast 2025 per Categoria")
+
+# 🔐 Cargar clave API Groq
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
     st.error("🚨 API Key is missing! Set it in Streamlit Secrets or a .env file.")
     st.stop()
 
-# Streamlit UI Config
-st.set_page_config(page_title="AI Forecasting Agent", page_icon="🔮", layout="wide")
-st.title("🔮 AI Agent - Revenue Forecasting with Prophet")
-
-# Upload Excel File
-uploaded_file = st.file_uploader("📂 Upload your Excel file with 'Date' and 'Revenue' columns", type=["xlsx"])
+# 📂 Subida de archivo
+uploaded_file = st.file_uploader("📁 Sube un archivo Excel con columnas: Years, Months, Categoria, Eur", type=["xlsx"])
 if uploaded_file:
-    df = pd.read_excel(uploaded_file)
-    st.subheader("🧾 Preview of Uploaded Data")
-    st.dataframe(df.head())
+    df_raw = pd.read_excel(uploaded_file)
 
-    # Preprocessing
-    df.columns = df.columns.str.strip().str.lower()
-    if 'date' not in df.columns or 'revenue' not in df.columns:
-        st.error("❌ The file must contain 'Date' and 'Revenue' columns.")
-        st.stop()
+    # 🧹 Preprocesamiento
+    df_raw['date_str'] = df_raw['Years'].astype(str) + "-" + df_raw['Months'].astype(str)
+    df_raw['ds'] = pd.to_datetime(df_raw['date_str'], format='%Y-%b')  # Ej: 2023-Jan
+    df_raw = df_raw[['ds', 'Categoria', 'Eur']].rename(columns={'Eur': 'y'})
 
-    df['date'] = pd.to_datetime(df['date'])
-    df = df.rename(columns={'date': 'ds', 'revenue': 'y'})
-    df = df[['ds', 'y']].dropna()
+    # 🎛️ Selector de categoría
+    categoria_sel = st.selectbox("🗂️ Elige la categoría", sorted(df_raw['Categoria'].unique()))
+    df_categoria = df_raw[df_raw['Categoria'] == categoria_sel].copy()
 
-    # Prophet Forecast
-    periods = st.slider("📅 Forecast Horizon (in months)", 1, 12, 6)
-    freq = st.selectbox("📈 Frequency of Data", options=["D", "W", "M"], index=2)
-
+    # 🔮 Forecast con Prophet
     m = Prophet()
-    m.fit(df)
+    m.fit(df_categoria[['ds', 'y']])
 
-    future = m.make_future_dataframe(periods=periods, freq=freq)
+    future = m.make_future_dataframe(periods=12, freq='M')  # 12 meses = todo 2025
     forecast = m.predict(future)
 
-    # Plot Forecast
-    st.subheader("📊 Forecast Plot")
-    fig = plot_plotly(m, forecast)
+    # 📊 Gráfico interactivo y visual
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df_categoria['ds'], y=df_categoria['y'],
+                             mode='lines+markers', name='Actual',
+                             line=dict(color='#0C769E')))
+    fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'],
+                             mode='lines', name='Forecast', line=dict(color='green')))
+    fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat_upper'],
+                             mode='lines', name='Upper', line=dict(width=0)))
+    fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat_lower'],
+                             fill='tonexty', fillcolor='rgba(173,216,230,0.3)',
+                             mode='lines', line=dict(width=0),
+                             name='Confidence Interval'))
+    fig.update_layout(title=f"📈 Forecast 2025 - {categoria_sel}",
+                      xaxis_title="Fecha", yaxis_title="EUR",
+                      height=500)
+
     st.plotly_chart(fig, use_container_width=True)
 
-    # AI Commentary using Groq
-    st.subheader("🤖 AI Analysis of Forecast")
-
-    data_for_ai = df.tail(12).to_json(orient="records", date_format="iso")
+    # 🤖 Comentario automático con IA
+    st.subheader("📖 Análisis AI para esta categoría")
+    data_json = df_categoria.to_json(orient="records", date_format="iso")
 
     prompt = f"""
-    You are an expert financial analyst.
-    Based on the following historical revenue data, explain:
-    - Key revenue trends and patterns.
-    - Potential business implications of the forecast.
-    - A CFO-level executive summary and suggestions for the next 6 months.
-    Data: {data_for_ai}
+    Actúa como un analista de ventas. Con base en los siguientes datos históricos para la categoría '{categoria_sel}':
+    - Describe la evolución de ingresos.
+    - Identifica estacionalidad o tendencias.
+    - Comenta la previsión para 2025 y recomendaciones para el negocio.
+    Datos: {data_json}
     """
 
     client = Groq(api_key=GROQ_API_KEY)
     response = client.chat.completions.create(
         messages=[
-            {"role": "system", "content": "You are a senior FP&A expert specialized in time series forecasting and business insights."},
+            {"role": "system", "content": "Eres un analista de negocio especializado en predicción de ventas por categoría."},
             {"role": "user", "content": prompt}
         ],
         model="llama3-8b-8192",
     )
 
     commentary = response.choices[0].message.content
-    st.markdown("### 📖 AI-Generated Commentary")
     st.write(commentary)
+
