@@ -23,38 +23,19 @@ uploaded_file = st.file_uploader("📁 Sube un archivo Excel con columnas: Years
 if uploaded_file:
     df_raw = pd.read_excel(uploaded_file)
 
-    # Preprocesamiento
-    df_raw['date_str'] = df_raw['Years'].astype(str) + "-" + df_raw['Months'].astype(str)
-    df_raw['ds'] = pd.to_datetime(df_raw['date_str'], format='%Y-%b')
-    df_raw = df_raw[['ds', 'Categoria', 'Eur']].rename(columns={'Eur': 'y'})
-
-    # ✅ ESTA LÍNEA VA AQUÍ DENTRO
-    categorias = sorted(df_raw['Categoria'].unique())
-    categoria_sel = st.selectbox("🗂️ Elige la categoría", ["Todas"] + categorias)
-
-    if categoria_sel == "Todas":
-        df_categoria = df_raw.groupby('ds', as_index=False)['y'].sum()
-    else:
-        df_categoria = df_raw[df_raw['Categoria'] == categoria_sel].copy()
-
-    # (Aquí continúa Prophet, forecast, gráfico, tabla, etc.)
-if uploaded_file:
-    df_raw = pd.read_excel(uploaded_file)
-
     # 🧹 Preprocesamiento
     df_raw['date_str'] = df_raw['Years'].astype(str) + "-" + df_raw['Months'].astype(str)
     df_raw['ds'] = pd.to_datetime(df_raw['date_str'], format='%Y-%b')  # Ej: 2023-Jan
     df_raw = df_raw[['ds', 'Categoria', 'Eur']].rename(columns={'Eur': 'y'})
 
- # 🎛️ Selector de categoría (con opción 'Todas')
-categorias = sorted(df_raw['Categoria'].unique())
-categoria_sel = st.selectbox("🗂️ Elige la categoría", ["Todas"] + categorias)
+    # 🏛️ Selector de categoría (con opción "Todas")
+    categorias = sorted(df_raw['Categoria'].unique())
+    categoria_sel = st.selectbox("🧲️ Elige la categoría", ["Todas"] + categorias)
 
-if categoria_sel == "Todas":
-    df_categoria = df_raw.groupby('ds', as_index=False)['y'].sum()
-else:
-    df_categoria = df_raw[df_raw['Categoria'] == categoria_sel].copy()
-
+    if categoria_sel == "Todas":
+        df_categoria = df_raw.groupby('ds', as_index=False)['y'].sum()
+    else:
+        df_categoria = df_raw[df_raw['Categoria'] == categoria_sel].copy()
 
     # 🔮 Forecast con Prophet
     m = Prophet()
@@ -82,7 +63,7 @@ else:
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # 📋 Mostrar ingresos anuales por categoría incluyendo forecast 2025
+    # 📋 Mostrar ingresos anuales incluyendo 2025 forecast
     try:
         st.markdown("### 📊 Ingresos anuales - Categoría seleccionada (Histórico + Forecast)")
 
@@ -104,7 +85,6 @@ else:
 
     except Exception as e:
         st.warning(f"No se pudo mostrar la tabla de ingresos anuales: {e}")
-
 
     # 🤖 Comentario automático con IA
     st.subheader("📖 Análisis AI para esta categoría")
@@ -134,3 +114,4 @@ Sales data (JSON format):
 
     commentary = response.choices[0].message.content
     st.write(commentary)
+
