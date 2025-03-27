@@ -58,23 +58,29 @@ if uploaded_file:
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # 📋 Ingresos anuales - incluyendo 2025 forecast
-    st.markdown("### 📊 Ingresos anuales - Categoría seleccionada (Histórico + Forecast)")
+    # 📋 Mostrar ingresos anuales por categoría incluyendo forecast 2025
+    try:
+        st.markdown("### 📊 Ingresos anuales - Categoría seleccionada (Histórico + Forecast)")
 
-    df_categoria['Año'] = df_categoria['ds'].dt.year
-    df_hist = df_categoria.groupby('Año', as_index=False)['y'].sum()
-    df_hist = df_hist.rename(columns={'y': 'Ingresos (€)'})
-    df_hist['Origen'] = 'Histórico'
+        df_categoria['Año'] = df_categoria['ds'].dt.year
+        df_hist = df_categoria.groupby('Año', as_index=False)['y'].sum()
+        df_hist = df_hist.rename(columns={'y': 'Ingresos (€)'})
+        df_hist['Origen'] = 'Histórico'
 
-    forecast_2025 = forecast.copy()
-    forecast_2025['Año'] = forecast_2025['ds'].dt.year
-    df_fcast = forecast_2025[forecast_2025['Año'] == 2025]
-    df_fcast = df_fcast.groupby('Año', as_index=False)['yhat'].sum()
-    df_fcast = df_fcast.rename(columns={'yhat': 'Ingresos (€)'})
-    df_fcast['Origen'] = 'Forecast'
+        forecast['Año'] = forecast['ds'].dt.year
+        df_fcast = forecast[forecast['Año'] == 2025]
+        df_fcast = df_fcast.groupby('Año', as_index=False)['yhat'].sum()
+        df_fcast = df_fcast.rename(columns={'yhat': 'Ingresos (€)'})
+        df_fcast['Origen'] = 'Forecast'
 
-    df_final = pd.concat([df_hist, df_fcast], ignore_index=True)
-    st.dataframe(df_final.style.format({'Ingresos (€)': '€{:,.2f}'}), use_container_width=True)
+        df_final = pd.concat([df_hist, df_fcast], ignore_index=True)
+        df_final = df_final.sort_values("Año")
+
+        st.dataframe(df_final.style.format({'Ingresos (€)': '€{:,.2f}'}), use_container_width=True)
+
+    except Exception as e:
+        st.warning(f"No se pudo mostrar la tabla de ingresos anuales: {e}")
+
 
     # 🤖 Comentario automático con IA
     st.subheader("📖 Análisis AI para esta categoría")
