@@ -62,7 +62,7 @@ if uploaded_file:
     st.subheader("📖 Análisis AI para esta categoría")
     data_json = df_categoria.to_json(orient="records", date_format="iso")
 
-     prompt = f"""
+    prompt = f"""
     You are a sales analyst working for a company specialized in frozen seafood (fish and shellfish). 
     Based on the following historical sales data for the product category '{categoria_sel}':
     - Describe the overall revenue evolution.
