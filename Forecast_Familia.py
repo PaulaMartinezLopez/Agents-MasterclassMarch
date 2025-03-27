@@ -23,6 +23,24 @@ uploaded_file = st.file_uploader("📁 Sube un archivo Excel con columnas: Years
 if uploaded_file:
     df_raw = pd.read_excel(uploaded_file)
 
+    # Preprocesamiento
+    df_raw['date_str'] = df_raw['Years'].astype(str) + "-" + df_raw['Months'].astype(str)
+    df_raw['ds'] = pd.to_datetime(df_raw['date_str'], format='%Y-%b')
+    df_raw = df_raw[['ds', 'Categoria', 'Eur']].rename(columns={'Eur': 'y'})
+
+    # ✅ ESTA LÍNEA VA AQUÍ DENTRO
+    categorias = sorted(df_raw['Categoria'].unique())
+    categoria_sel = st.selectbox("🗂️ Elige la categoría", ["Todas"] + categorias)
+
+    if categoria_sel == "Todas":
+        df_categoria = df_raw.groupby('ds', as_index=False)['y'].sum()
+    else:
+        df_categoria = df_raw[df_raw['Categoria'] == categoria_sel].copy()
+
+    # (Aquí continúa Prophet, forecast, gráfico, tabla, etc.)
+if uploaded_file:
+    df_raw = pd.read_excel(uploaded_file)
+
     # 🧹 Preprocesamiento
     df_raw['date_str'] = df_raw['Years'].astype(str) + "-" + df_raw['Months'].astype(str)
     df_raw['ds'] = pd.to_datetime(df_raw['date_str'], format='%Y-%b')  # Ej: 2023-Jan
