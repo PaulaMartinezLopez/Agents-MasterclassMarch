@@ -70,16 +70,15 @@ if uploaded_file:
     # Plot
     st.subheader(":bar_chart: Forecast with Scenario")
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='markers+lines', name='Actuals'))
-    fig.add_trace(go.Scatter(x=forecast_df['ds'], y=forecast_df['y'], mode='lines', name='Baseline Forecast'))
-   fig.add_trace(go.Scatter(
-    x=forecast_df['ds'],
-    y=forecast_df['adjusted_y'],
-    mode='lines+markers',
-    name='Adjusted Forecast',
-    line=dict(color='green')
-))
-
+    fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='markers+lines', name='Actuals', line=dict(color='gray')))
+    fig.add_trace(go.Scatter(x=forecast_df['ds'], y=forecast_df['y'], mode='lines', name='Baseline Forecast', line=dict(color='blue')))
+    fig.add_trace(go.Scatter(
+        x=forecast_df['ds'],
+        y=forecast_df['adjusted_y'],
+        mode='lines+markers',
+        name='Adjusted Forecast',
+        line=dict(color='green')
+    ))
     fig.update_layout(title="Monthly Revenue Forecast (Scenario Model)", xaxis_title="Date", yaxis_title="Revenue", hovermode="x")
     st.plotly_chart(fig, use_container_width=True)
 
@@ -133,5 +132,6 @@ if uploaded_file:
     commentary = response.choices[0].message.content
     st.markdown("### :blue_book: AI-Generated Commentary")
     st.write(commentary)
+
 
 
