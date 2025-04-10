@@ -21,16 +21,7 @@ st.title(":bar_chart: CFO-Friendly Revenue Forecast + Scenario Planner")
 uploaded_file = st.file_uploader("📂 Upload your Excel file with 'Date', 'Revenue' and '% GPM' columns", type=["xlsx"])
 if uploaded_file:
     df = pd.read_excel(uploaded_file)
-    st.subheader(":page_facing_up: Preview of Uploaded Data")
-    st.dataframe(df.head())
-
-    # Preprocessing
-    df.columns = df.columns.str.strip().str.lower()
-    if 'date' not in df.columns or 'revenue' not in df.columns or '% gpm' not in df.columns:
-        st.error("❌ The file must contain 'Date', 'Revenue' and '% GPM' columns.")
-        st.stop()
-
-    df['date'] = pd.to_datetime(df['date'])
+    # Preview removed
     df = df.rename(columns={'date': 'ds', 'revenue': 'y', '% gpm': 'gpm'})
     df = df[['ds', 'y', 'gpm']].dropna()
 
@@ -156,7 +147,6 @@ if uploaded_file:
     commentary = response.choices[0].message.content
     st.markdown("### :blue_book: AI-Generated Commentary")
     st.write(commentary)
-
 
 
 
