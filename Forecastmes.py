@@ -43,17 +43,15 @@ if uploaded_file:
     end = df_train[df_train['ds'].dt.year == 2024]['y'].sum()
     cagr = ((end / start) ** (1 / 1)) - 1 if start > 0 else 0
 
-    # Prophet Forecast
+    # Prophet Forecast with monthly seasonality
     periods = st.slider("📅 Forecast Horizon (in months)", 1, 12, 6)
-    
     m = Prophet(
-    yearly_seasonality=True,
-    weekly_seasonality=False,
-    daily_seasonality=False,
-    seasonality_mode='multiplicative'  # o 'additive' si prefieres
-)
-m.add_seasonality(name='monthly', period=30.5, fourier_order=5)
-
+        yearly_seasonality=True,
+        weekly_seasonality=False,
+        daily_seasonality=False,
+        seasonality_mode='multiplicative'
+    )
+    m.add_seasonality(name='monthly', period=30.5, fourier_order=5)
     m.fit(df_train)
 
     future = m.make_future_dataframe(periods=periods, freq='MS')  # Monthly start
