@@ -21,8 +21,18 @@ st.title(":bar_chart: CFO-Friendly Revenue Forecast + Scenario Planner")
 uploaded_file = st.file_uploader("📂 Upload your Excel file with 'Date', 'Revenue' and '% GPM' columns", type=["xlsx"])
 if uploaded_file:
     df = pd.read_excel(uploaded_file)
-    # Preview removed
-    df = df.rename(columns={'date': 'ds', 'revenue': 'y', '% gpm': 'gpm'})
+    df.columns = [col.strip().lower() for col in df.columns]
+    df = df.rename(columns={
+        'date': 'ds',
+        'revenue': 'y',
+        '% gpm': 'gpm'
+    })
+
+    if not all(col in df.columns for col in ['ds', 'y', 'gpm']):
+        st.error(f"❌ Missing columns after renaming. Found: {df.columns.tolist()}")
+        st.stop()
+
+    df['ds'] = pd.to_datetime(df['ds'])
     df = df[['ds', 'y', 'gpm']].dropna()
 
     df['month'] = df['ds'].dt.month
@@ -147,6 +157,7 @@ if uploaded_file:
     commentary = response.choices[0].message.content
     st.markdown("### :blue_book: AI-Generated Commentary")
     st.write(commentary)
+
 
 
 
