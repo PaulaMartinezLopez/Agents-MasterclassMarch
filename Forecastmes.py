@@ -105,29 +105,16 @@ if uploaded_file:
     margin_2025_adjusted = forecast_df['adjusted_margin'].sum()
 
     summary_df = pd.DataFrame({
-        'Metric': [
-            'Real 2023',
-            'Real 2024',
-            'Gross Margin Real (2023-24)',
-            'Forecast 2025 (base)',
-            'Margin 2025 (base)',
-            'Forecast 2025 (adjusted)',
-            'Margin 2025 (adjusted)'
-        ],
-        'Value (€)': [
-            real_2023,
-            real_2024,
-            gpm_real,
-            fcst_2025_base,
-            margin_2025_base,
-            fcst_2025_adjusted,
-            margin_2025_adjusted
-        ]
+        'Metric': ['2023', '2024', 'Forecast 2025 (base)', 'Forecast 2025 (adjusted)'],
+        'Revenue (€)': [real_2023, real_2024, fcst_2025_base, fcst_2025_adjusted],
+        'Gross Margin (€)': [np.nan, np.nan, margin_2025_base, margin_2025_adjusted]
     })
 
-    summary_df['Value (€)'] = summary_df['Value (€)'].apply(lambda x: f"€{x/1_000_000:,.2f}M")
+    summary_df['Revenue (€)'] = summary_df['Revenue (€)'].apply(lambda x: f"€{x/1_000_000:,.2f}M" if pd.notnull(x) else '')
+    summary_df['Gross Margin (€)'] = summary_df['Gross Margin (€)'].apply(lambda x: f"€{x/1_000_000:,.2f}M" if pd.notnull(x) else '')
+
     st.dataframe(summary_df.style.applymap(
-        lambda v: 'color: green; font-weight: bold' if 'adjusted' in v else '',
+        lambda v: 'color: green; font-weight: bold' if 'adjusted' in str(v) else '',
         subset=['Metric']
     ), use_container_width=True)
 
