@@ -4,7 +4,7 @@ import numpy as np
 import os
 from dotenv import load_dotenv
 from prophet import Prophet
-from prophet.plot import plot_plotly
+import plotly.graph_objects as go
 from groq import Groq
 
 # Load API Key
@@ -35,22 +35,28 @@ if uploaded_file:
     df = df.rename(columns={'date': 'ds', 'revenue': 'y'})
     df = df[['ds', 'y']].dropna()
 
-    # ENTRENAR SOLO CON DATOS REALES (2023-2024)
+    # Filter data only for 2023 and 2024 (real data)
     df_train = df[df['ds'].dt.year <= 2024]
+
+    # Calculate CAGR between 2023 and 2024
+    start = df_train[df_train['ds'].dt.year == 2023]['y'].sum()
+    end = df_train[df_train['ds'].dt.year == 2024]['y'].sum()
+    cagr = ((end / start) ** (1 / 1)) - 1 if start > 0 else 0
 
     # Prophet Forecast
     periods = st.slider("📅 Forecast Horizon (in months)", 1, 12, 6)
-    freq = st.selectbox("📈 Frequency of Data", options=["D", "W", "M"], index=2)
-
     m = Prophet()
     m.fit(df_train)
 
-    future = m.make_future_dataframe(periods=periods, freq=freq)
+    future = m.make_future_dataframe(periods=periods, freq='MS')  # Monthly start
     forecast = m.predict(future)
 
-    # Plot Forecast
+    # Plot Forecast and actuals
     st.subheader(":bar_chart: Forecast Plot")
-    fig = plot_plotly(m, forecast)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df_train['ds'], y=df_train['y'], mode='markers+lines', name='Actuals'))
+    fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], mode='lines', name='Forecast'))
+    fig.update_layout(title="Monthly Revenue Forecast", xaxis_title="Date", yaxis_title="Revenue", hovermode="x")
     st.plotly_chart(fig, use_container_width=True)
 
     # Revenue by Year
@@ -62,22 +68,27 @@ if uploaded_file:
     # AI Commentary using Groq
     st.subheader(":robot_face: AI Analysis of Forecast")
 
-    # Solo datos reales para el análisis
     data_for_ai = df_train.tail(12).to_json(orient="records", date_format="iso")
 
     prompt = f"""
-    You are an expert financial analyst.
-    Based only on the historical revenue data from 2023 and 2024 (exclude forecasted data), analyze:
-    - Key revenue trends and patterns.
-    - Business implications.
-    - Executive summary for CFO with suggestions for the next 6 months.
-    Data: {data_for_ai}
+    You are an expert FP&A analyst.
+    Revenue in 2023: €{start:,.0f}
+    Revenue in 2024: €{end:,.0f}
+    CAGR from 2023 to 2024: {cagr:.2%}
+
+    Only analyze the trends based on this real historical data. Do not assume growth or volatility unless explicitly shown by the data.
+    Here's the monthly breakdown for the last 12 months: {data_for_ai}
+
+    Please provide:
+    - Key revenue trends (backed by data)
+    - Business implications
+    - A realistic executive summary for the CFO (avoid assumptions)
     """
 
     client = Groq(api_key=GROQ_API_KEY)
     response = client.chat.completions.create(
         messages=[
-            {"role": "system", "content": "You are a senior FP&A expert specialized in time series forecasting and business insights.Avoid assumptions and do not invent trends"},
+            {"role": "system", "content": "You are a senior FP&A expert specialized in forecasting and data-driven decision-making."},
             {"role": "user", "content": prompt}
         ],
         model="llama3-8b-8192",
