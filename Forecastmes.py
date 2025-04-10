@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import os
 from dotenv import load_dotenv
-from prophet import Prophet
 import plotly.graph_objects as go
 from groq import Groq
 
@@ -15,8 +14,8 @@ if not GROQ_API_KEY:
     st.stop()
 
 # Streamlit UI Config
-st.set_page_config(page_title="AI Forecasting Agent", page_icon=":crystal_ball:", layout="wide")
-st.title(":crystal_ball: AI Agent - Revenue Forecasting with Prophet")
+st.set_page_config(page_title="Forecasting Agent - Moving Average", page_icon=":bar_chart:", layout="wide")
+st.title(":bar_chart: CFO-Friendly Revenue Forecast (Simple Model)")
 
 # Upload Excel File
 uploaded_file = st.file_uploader("📂 Upload your Excel file with 'Date' and 'Revenue' columns", type=["xlsx"])
@@ -35,66 +34,48 @@ if uploaded_file:
     df = df.rename(columns={'date': 'ds', 'revenue': 'y'})
     df = df[['ds', 'y']].dropna()
 
-    # Filter data only for 2023 and 2024 (real data)
-    df_train = df[df['ds'].dt.year <= 2024]
+    df['month'] = df['ds'].dt.month
+    df['year'] = df['ds'].dt.year
 
-    # Calculate CAGR between 2023 and 2024
-    start = df_train[df_train['ds'].dt.year == 2023]['y'].sum()
-    end = df_train[df_train['ds'].dt.year == 2024]['y'].sum()
-    cagr = ((end / start) ** (1 / 1)) - 1 if start > 0 else 0
+    # Create seasonal index: average revenue per month over all years
+    seasonal_index = df.groupby('month')['y'].mean() / df['y'].mean()
 
-    # Prophet Forecast with monthly seasonality
-    periods = st.slider("📅 Forecast Horizon (in months)", 1, 12, 6)
-    m = Prophet(
-        yearly_seasonality=True,
-        weekly_seasonality=False,
-        daily_seasonality=False,
-        seasonality_mode='multiplicative'
-    )
-    m.add_seasonality(name='monthly', period=30.5, fourier_order=5)
-    m.fit(df_train)
+    # Forecast next 6 months using average of last 12 months adjusted by seasonality
+    last_12m_avg = df.sort_values('ds').tail(12)['y'].mean()
+    future_months = pd.date_range(df['ds'].max() + pd.offsets.MonthBegin(), periods=6, freq='MS')
+    forecast_df = pd.DataFrame({'ds': future_months})
+    forecast_df['month'] = forecast_df['ds'].dt.month
+    forecast_df['y'] = forecast_df['month'].map(seasonal_index) * last_12m_avg
 
-    future = m.make_future_dataframe(periods=periods, freq='MS')  # Monthly start
-    forecast = m.predict(future)
-
-    # Plot Forecast and actuals
+    # Plot
     st.subheader(":bar_chart: Forecast Plot")
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df_train['ds'], y=df_train['y'], mode='markers+lines', name='Actuals'))
-    fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], mode='lines', name='Forecast'))
-    fig.update_layout(title="Monthly Revenue Forecast", xaxis_title="Date", yaxis_title="Revenue", hovermode="x")
+    fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='markers+lines', name='Actuals'))
+    fig.add_trace(go.Scatter(x=forecast_df['ds'], y=forecast_df['y'], mode='lines+markers', name='Forecast'))
+    fig.update_layout(title="Monthly Revenue Forecast (Simple Model)", xaxis_title="Date", yaxis_title="Revenue", hovermode="x")
     st.plotly_chart(fig, use_container_width=True)
 
-    # Revenue by Year
-    st.subheader(":calendar: Revenue by Year")
-    df_train['year'] = df_train['ds'].dt.year
-    revenue_by_year = df_train.groupby('year')['y'].sum().reset_index()
-    st.table(revenue_by_year)
-
     # AI Commentary using Groq
-    st.subheader(":robot_face: AI Analysis of Forecast")
-
-    data_for_ai = df_train.tail(12).to_json(orient="records", date_format="iso")
+    st.subheader(":robot_face: Executive Commentary")
+    historical_total = df[df['year'] == 2024]['y'].sum() if 2024 in df['year'].values else 0
+    future_total = forecast_df['y'].sum()
 
     prompt = f"""
-    You are an expert FP&A analyst.
-    Revenue in 2023: €{start:,.0f}
-    Revenue in 2024: €{end:,.0f}
-    CAGR from 2023 to 2024: {cagr:.2%}
+    You are an FP&A analyst. Revenue from Jan-Dec 2024 was €{historical_total:,.0f}.
+    Based on this, we forecast the next 6 months with a seasonal model adjusted from the last 12 months' average.
+    The forecasted total for the next 6 months is €{future_total:,.0f}.
 
-    Only analyze the trends based on this real historical data. Do not assume growth or volatility unless explicitly shown by the data.
-    Here's the monthly breakdown for the last 12 months: {data_for_ai}
-
-    Please provide:
-    - Key revenue trends (backed by data)
-    - Business implications
-    - A realistic executive summary for the CFO (avoid assumptions)
+    Write a brief, data-based executive summary for a CFO, including:
+    - Trends observed in recent data.
+    - The seasonal impact expected.
+    - Whether the next 6 months are expected to be above/below average.
+    - Recommendations based on this short-term outlook.
     """
 
     client = Groq(api_key=GROQ_API_KEY)
     response = client.chat.completions.create(
         messages=[
-            {"role": "system", "content": "You are a senior FP&A expert specialized in forecasting and data-driven decision-making."},
+            {"role": "system", "content": "You are a senior FP&A expert specialized in business insight."},
             {"role": "user", "content": prompt}
         ],
         model="llama3-8b-8192",
