@@ -52,12 +52,7 @@ if uploaded_file:
     # Plot Forecast
     st.subheader(":bar_chart: Forecast Plot")
     fig = plot_plotly(m, forecast)
-    fig.add_vline(
-        x=pd.to_datetime("2024-12-31"),
-        line=dict(color="red", dash="dot"),
-        annotation_text="Forecast Start",
-        annotation_position="top right"
-    )
+    
     st.plotly_chart(fig, use_container_width=True)
 
     # Revenue by Year
