@@ -45,7 +45,15 @@ if uploaded_file:
 
     # Prophet Forecast
     periods = st.slider("📅 Forecast Horizon (in months)", 1, 12, 6)
-    m = Prophet()
+    
+    m = Prophet(
+    yearly_seasonality=True,
+    weekly_seasonality=False,
+    daily_seasonality=False,
+    seasonality_mode='multiplicative'  # o 'additive' si prefieres
+)
+m.add_seasonality(name='monthly', period=30.5, fourier_order=5)
+
     m.fit(df_train)
 
     future = m.make_future_dataframe(periods=periods, freq='MS')  # Monthly start
