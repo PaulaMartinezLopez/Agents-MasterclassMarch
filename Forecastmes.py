@@ -40,12 +40,12 @@ if uploaded_file:
     # Create seasonal index: average revenue per month over all years
     seasonal_index = df.groupby('month')['y'].mean() / df['y'].mean()
 
-    # Forecast next 6 months using average of last 12 months adjusted by seasonality
-    last_12m_avg = df.sort_values('ds').tail(12)['y'].mean()
-months = st.slider("📅 Forecast Horizon (in months)", 1, 12, 6)
-future_months = pd.date_range(df['ds'].max() + pd.offsets.MonthBegin(), periods=months, freq='MS')
+    # Select forecast horizon
+    months = st.slider("📅 Forecast Horizon (in months)", 1, 12, 6)
 
-    
+    # Forecast future using seasonal adjustment
+    last_12m_avg = df.sort_values('ds').tail(12)['y'].mean()
+    future_months = pd.date_range(df['ds'].max() + pd.offsets.MonthBegin(), periods=months, freq='MS')
     forecast_df = pd.DataFrame({'ds': future_months})
     forecast_df['month'] = forecast_df['ds'].dt.month
     forecast_df['y'] = forecast_df['month'].map(seasonal_index) * last_12m_avg
@@ -61,18 +61,17 @@ future_months = pd.date_range(df['ds'].max() + pd.offsets.MonthBegin(), periods=
     # AI Commentary using Groq
     st.subheader(":robot_face: Executive Commentary")
     historical_total = df[df['year'] == 2024]['y'].sum() if 2024 in df['year'].values else 0
-   future_total = forecast_df['y'].head(months).sum()
-
+    future_total = forecast_df['y'].sum()
 
     prompt = f"""
     You are an FP&A analyst. Revenue from Jan-Dec 2024 was €{historical_total:,.0f}.
-    Based on this, we forecast the next 6 months with a seasonal model adjusted from the last 12 months' average.
-    The forecasted total for the next 6 months is €{future_total:,.0f}.
+    Based on this, we forecast the next {months} months with a seasonal model adjusted from the last 12 months' average.
+    The forecasted total for the next {months} months is €{future_total:,.0f}.
 
     Write a brief, data-based executive summary for a CFO, including:
     - Trends observed in recent data.
     - The seasonal impact expected.
-    - Whether the next 6 months are expected to be above/below average.
+    - Whether the next {months} months are expected to be above/below average.
     - Recommendations based on this short-term outlook.
     """
 
@@ -88,4 +87,5 @@ future_months = pd.date_range(df['ds'].max() + pd.offsets.MonthBegin(), periods=
     commentary = response.choices[0].message.content
     st.markdown("### :blue_book: AI-Generated Commentary")
     st.write(commentary)
+
 
