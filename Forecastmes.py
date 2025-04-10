@@ -12,24 +12,24 @@ from groq import Groq
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
-    st.error("\ud83d\udea8 API Key is missing! Set it in Streamlit Secrets or a .env file.")
+    st.error("❌ API Key is missing! Set it in Streamlit Secrets or a .env file.")
     st.stop()
 
 # Streamlit UI Config
-st.set_page_config(page_title="AI Forecasting Agent", page_icon="\ud83d\udd2e", layout="wide")
-st.title("\ud83d\udd2e AI Agent - Revenue Forecasting with Prophet")
+st.set_page_config(page_title="AI Forecasting Agent", page_icon=":crystal_ball:", layout="wide")
+st.title(":crystal_ball: AI Agent - Revenue Forecasting with Prophet")
 
 # Upload Excel File
-uploaded_file = st.file_uploader("\ud83d\udcc2 Upload your Excel file with 'Date' and 'Revenue' columns", type=["xlsx"])
+uploaded_file = st.file_uploader("📂 Upload your Excel file with 'Date' and 'Revenue' columns", type=["xlsx"])
 if uploaded_file:
     df = pd.read_excel(uploaded_file)
-    st.subheader("\ud83d\udcdc Preview of Uploaded Data")
+    st.subheader(":page_facing_up: Preview of Uploaded Data")
     st.dataframe(df.head())
 
     # Preprocessing
     df.columns = df.columns.str.strip().str.lower()
     if 'date' not in df.columns or 'revenue' not in df.columns:
-        st.error("\u274c The file must contain 'Date' and 'Revenue' columns.")
+        st.error("❌ The file must contain 'Date' and 'Revenue' columns.")
         st.stop()
 
     df['date'] = pd.to_datetime(df['date'])
@@ -40,8 +40,8 @@ if uploaded_file:
     df_real = df[df['ds'].dt.year <= 2024]
 
     # Prophet Forecast
-    periods = st.slider("\ud83d\uddd3\ufe0f Forecast Horizon (in months)", 1, 12, 6)
-    freq = st.selectbox("\ud83d\udcc8 Frequency of Data", options=["D", "W", "M"], index=2)
+    periods = st.slider("📅 Forecast Horizon (in months)", 1, 12, 6)
+    freq = st.selectbox("📈 Frequency of Data", options=["D", "W", "M"], index=2)
 
     m = Prophet(growth='flat')
     m.fit(df_real)
@@ -50,7 +50,7 @@ if uploaded_file:
     forecast = m.predict(future)
 
     # Plot Forecast
-    st.subheader("\ud83d\udcca Forecast Plot")
+    st.subheader(":bar_chart: Forecast Plot")
     fig = plot_plotly(m, forecast)
     fig.add_vline(
         x=pd.to_datetime("2024-12-31"),
@@ -61,13 +61,13 @@ if uploaded_file:
     st.plotly_chart(fig, use_container_width=True)
 
     # Revenue by Year
-    st.subheader("\ud83d\udcc5 Revenue by Year")
+    st.subheader(":calendar: Revenue by Year")
     df_real['year'] = df_real['ds'].dt.year
     revenue_by_year = df_real.groupby('year')['y'].sum().reset_index()
     st.table(revenue_by_year)
 
     # AI Commentary using Groq
-    st.subheader("\ud83e\udd16 AI Analysis of Forecast")
+    st.subheader(":robot_face: AI Analysis of Forecast")
 
     data_for_ai = df_real.tail(12).to_json(orient="records", date_format="iso")
 
@@ -90,5 +90,5 @@ if uploaded_file:
     )
 
     commentary = response.choices[0].message.content
-    st.markdown("### \ud83d\udcd6 AI-Generated Commentary")
+    st.markdown("### :blue_book: AI-Generated Commentary")
     st.write(commentary)
