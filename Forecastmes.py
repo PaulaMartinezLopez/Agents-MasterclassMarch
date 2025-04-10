@@ -14,8 +14,8 @@ if not GROQ_API_KEY:
     st.stop()
 
 # Streamlit UI Config
-st.set_page_config(page_title="Forecasting Agent - Moving Average", page_icon=":bar_chart:", layout="wide")
-st.title(":bar_chart: CFO-Friendly Revenue Forecast (Simple Model)")
+st.set_page_config(page_title="Forecasting Agent - Scenario Planner", page_icon=":bar_chart:", layout="wide")
+st.title(":bar_chart: CFO-Friendly Revenue Forecast + Scenario Planner")
 
 # Upload Excel File
 uploaded_file = st.file_uploader("📂 Upload your Excel file with 'Date' and 'Revenue' columns", type=["xlsx"])
@@ -37,42 +37,62 @@ if uploaded_file:
     df['month'] = df['ds'].dt.month
     df['year'] = df['ds'].dt.year
 
-    # Create seasonal index: average revenue per month over all years
+    # Seasonal index
     seasonal_index = df.groupby('month')['y'].mean() / df['y'].mean()
 
-    # Select forecast horizon
+    # Forecast horizon
     months = st.slider("📅 Forecast Horizon (in months)", 1, 12, 6)
-
-    # Forecast future using seasonal adjustment
     last_12m_avg = df.sort_values('ds').tail(12)['y'].mean()
     future_months = pd.date_range(df['ds'].max() + pd.offsets.MonthBegin(), periods=months, freq='MS')
     forecast_df = pd.DataFrame({'ds': future_months})
     forecast_df['month'] = forecast_df['ds'].dt.month
     forecast_df['y'] = forecast_df['month'].map(seasonal_index) * last_12m_avg
 
+    # Scenario adjustments
+    st.sidebar.header("🔧 Scenario Planner")
+    q1_adj = st.sidebar.slider("Q1 adjustment (%)", -50, 50, 0)
+    q2_adj = st.sidebar.slider("Q2 adjustment (%)", -50, 50, 0)
+    q3_adj = st.sidebar.slider("Q3 adjustment (%)", -50, 50, 0)
+    q4_adj = st.sidebar.slider("Q4 adjustment (%)", -50, 50, 0)
+
+    def apply_adjustment(row):
+        if row['ds'].month in [1, 2, 3]:
+            return row['y'] * (1 + q1_adj / 100)
+        elif row['ds'].month in [4, 5, 6]:
+            return row['y'] * (1 + q2_adj / 100)
+        elif row['ds'].month in [7, 8, 9]:
+            return row['y'] * (1 + q3_adj / 100)
+        else:
+            return row['y'] * (1 + q4_adj / 100)
+
+    forecast_df['adjusted_y'] = forecast_df.apply(apply_adjustment, axis=1)
+
     # Plot
-    st.subheader(":bar_chart: Forecast Plot")
+    st.subheader(":bar_chart: Forecast with Scenario")
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='markers+lines', name='Actuals'))
-    fig.add_trace(go.Scatter(x=forecast_df['ds'], y=forecast_df['y'], mode='lines+markers', name='Forecast'))
-    fig.update_layout(title="Monthly Revenue Forecast (Simple Model)", xaxis_title="Date", yaxis_title="Revenue", hovermode="x")
+    fig.add_trace(go.Scatter(x=forecast_df['ds'], y=forecast_df['y'], mode='lines', name='Baseline Forecast'))
+    fig.add_trace(go.Scatter(x=forecast_df['ds'], y=forecast_df['adjusted_y'], mode='lines+markers', name='Adjusted Forecast'))
+    fig.update_layout(title="Monthly Revenue Forecast (Scenario Model)", xaxis_title="Date", yaxis_title="Revenue", hovermode="x")
     st.plotly_chart(fig, use_container_width=True)
 
     # AI Commentary using Groq
     st.subheader(":robot_face: Executive Commentary")
-    historical_total = df[df['year'] == 2024]['y'].sum() if 2024 in df['year'].values else 0
-    future_total = forecast_df['y'].sum()
+    future_total = forecast_df['adjusted_y'].sum()
+    base_total = forecast_df['y'].sum()
+    delta = future_total - base_total
 
     prompt = f"""
-    You are an FP&A analyst. Revenue from Jan-Dec 2024 was €{historical_total:,.0f}.
-    Based on this, we forecast the next {months} months with a seasonal model adjusted from the last 12 months' average.
-    The forecasted total for the next {months} months is €{future_total:,.0f}.
+    You are an FP&A analyst. Based on the user's adjustments:
+    - Q1 adj: {q1_adj}%
+    - Q2 adj: {q2_adj}%
+    - Q3 adj: {q3_adj}%
+    - Q4 adj: {q4_adj}%
 
-    Write a brief, data-based executive summary for a CFO, including:
-    - Trends observed in recent data.
-    - The seasonal impact expected.
-    - Whether the next {months} months are expected to be above/below average.
-    - Recommendations based on this short-term outlook.
+    The baseline forecast for the next {months} months is €{base_total:,.0f}.
+    The adjusted forecast is €{future_total:,.0f}, a change of €{delta:,.0f}.
+
+    Please summarize the key business implications and provide a CFO-ready narrative based on this short-term outlook.
     """
 
     client = Groq(api_key=GROQ_API_KEY)
