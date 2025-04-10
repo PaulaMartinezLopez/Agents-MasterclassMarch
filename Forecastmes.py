@@ -42,7 +42,10 @@ if uploaded_file:
 
     # Forecast next 6 months using average of last 12 months adjusted by seasonality
     last_12m_avg = df.sort_values('ds').tail(12)['y'].mean()
-    future_months = pd.date_range(df['ds'].max() + pd.offsets.MonthBegin(), periods=6, freq='MS')
+months = st.slider("📅 Forecast Horizon (in months)", 1, 12, 6)
+future_months = pd.date_range(df['ds'].max() + pd.offsets.MonthBegin(), periods=months, freq='MS')
+
+    
     forecast_df = pd.DataFrame({'ds': future_months})
     forecast_df['month'] = forecast_df['ds'].dt.month
     forecast_df['y'] = forecast_df['month'].map(seasonal_index) * last_12m_avg
@@ -58,7 +61,8 @@ if uploaded_file:
     # AI Commentary using Groq
     st.subheader(":robot_face: Executive Commentary")
     historical_total = df[df['year'] == 2024]['y'].sum() if 2024 in df['year'].values else 0
-    future_total = forecast_df['y'].sum()
+   future_total = forecast_df['y'].head(months).sum()
+
 
     prompt = f"""
     You are an FP&A analyst. Revenue from Jan-Dec 2024 was €{historical_total:,.0f}.
