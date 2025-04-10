@@ -72,7 +72,7 @@ if uploaded_file:
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='markers+lines', name='Actuals'))
     fig.add_trace(go.Scatter(x=forecast_df['ds'], y=forecast_df['y'], mode='lines', name='Baseline Forecast'))
-    fig.add_trace(go.Scatter(x=forecast_df['ds'], y=forecast_df['adjusted_y'], mode='lines+markers', name='Adjusted Forecast'))
+    fig.add_trace(go.Scatter(x=forecast_df['ds'], y=forecast_df['adjusted_y'], mode='lines+markers', name='Adjusted Forecast', line=dict(color='green')))
     fig.update_layout(title="Monthly Revenue Forecast (Scenario Model)", xaxis_title="Date", yaxis_title="Revenue", hovermode="x")
     st.plotly_chart(fig, use_container_width=True)
 
@@ -87,7 +87,15 @@ if uploaded_file:
         'Metric': ['Real 2023', 'Real 2024', 'Forecast 2025 (base)', 'Forecast 2025 (adjusted)'],
         'Value (€)': [real_2023, real_2024, fcst_2025_base, fcst_2025_adjusted]
     })
-    st.dataframe(summary_df, use_container_width=True)
+
+    def format_millions(euros):
+        return f"€{euros/1_000_000:,.2f}M"
+
+    summary_df['Value (€)'] = summary_df['Value (€)'].apply(format_millions)
+    st.dataframe(summary_df.style.applymap(
+        lambda v: 'color: green; font-weight: bold' if 'adjusted' in v else '',
+        subset=['Metric']
+    ), use_container_width=True)
 
     # AI Commentary using Groq
     st.subheader(":robot_face: Executive Commentary")
