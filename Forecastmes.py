@@ -5,7 +5,6 @@ import os
 from dotenv import load_dotenv
 from prophet import Prophet
 from prophet.plot import plot_plotly
-import plotly.graph_objects as go
 from groq import Groq
 
 # Load API Key
@@ -36,15 +35,15 @@ if uploaded_file:
     df = df.rename(columns={'date': 'ds', 'revenue': 'y'})
     df = df[['ds', 'y']].dropna()
 
-    # Filter only real data (2023-2024)
-    df_real = df[df['ds'].dt.year <= 2024]
+    # ENTRENAR SOLO CON DATOS REALES (2023-2024)
+    df_train = df[df['ds'].dt.year <= 2024]
 
     # Prophet Forecast
     periods = st.slider("📅 Forecast Horizon (in months)", 1, 12, 6)
     freq = st.selectbox("📈 Frequency of Data", options=["D", "W", "M"], index=2)
 
-    m = Prophet(growth='flat')
-    m.fit(df_real)
+    m = Prophet()
+    m.fit(df_train)
 
     future = m.make_future_dataframe(periods=periods, freq=freq)
     forecast = m.predict(future)
@@ -52,26 +51,26 @@ if uploaded_file:
     # Plot Forecast
     st.subheader(":bar_chart: Forecast Plot")
     fig = plot_plotly(m, forecast)
-    
     st.plotly_chart(fig, use_container_width=True)
 
     # Revenue by Year
     st.subheader(":calendar: Revenue by Year")
-    df_real['year'] = df_real['ds'].dt.year
-    revenue_by_year = df_real.groupby('year')['y'].sum().reset_index()
+    df_train['year'] = df_train['ds'].dt.year
+    revenue_by_year = df_train.groupby('year')['y'].sum().reset_index()
     st.table(revenue_by_year)
 
     # AI Commentary using Groq
     st.subheader(":robot_face: AI Analysis of Forecast")
 
-    data_for_ai = df_real.tail(12).to_json(orient="records", date_format="iso")
+    # Solo datos reales para el análisis
+    data_for_ai = df_train.tail(12).to_json(orient="records", date_format="iso")
 
     prompt = f"""
     You are an expert financial analyst.
-    Based only on the historical revenue data (excluding forecasted data), analyze:
-    - Key revenue trends and patterns between 2023 and 2024.
-    - Business implications assuming no automatic growth.
-    - Executive summary for CFO with suggestions for the next 6 months based on real trends.
+    Based only on the historical revenue data from 2023 and 2024 (exclude forecasted data), analyze:
+    - Key revenue trends and patterns.
+    - Business implications.
+    - Executive summary for CFO with suggestions for the next 6 months.
     Data: {data_for_ai}
     """
 
@@ -87,3 +86,4 @@ if uploaded_file:
     commentary = response.choices[0].message.content
     st.markdown("### :blue_book: AI-Generated Commentary")
     st.write(commentary)
+
