@@ -76,11 +76,22 @@ if uploaded_file:
     fig.update_layout(title="Monthly Revenue Forecast (Scenario Model)", xaxis_title="Date", yaxis_title="Revenue", hovermode="x")
     st.plotly_chart(fig, use_container_width=True)
 
+    # Summary Table
+    st.subheader(":clipboard: Forecast Summary Table")
+    real_2023 = df[df['year'] == 2023]['y'].sum() if 2023 in df['year'].values else 0
+    real_2024 = df[df['year'] == 2024]['y'].sum() if 2024 in df['year'].values else 0
+    fcst_2025_base = forecast_df['y'].sum()
+    fcst_2025_adjusted = forecast_df['adjusted_y'].sum()
+
+    summary_df = pd.DataFrame({
+        'Metric': ['Real 2023', 'Real 2024', 'Forecast 2025 (base)', 'Forecast 2025 (adjusted)'],
+        'Value (€)': [real_2023, real_2024, fcst_2025_base, fcst_2025_adjusted]
+    })
+    st.dataframe(summary_df, use_container_width=True)
+
     # AI Commentary using Groq
     st.subheader(":robot_face: Executive Commentary")
-    future_total = forecast_df['adjusted_y'].sum()
-    base_total = forecast_df['y'].sum()
-    delta = future_total - base_total
+    delta = fcst_2025_adjusted - fcst_2025_base
 
     prompt = f"""
     You are an FP&A analyst. Based on the user's adjustments:
@@ -89,8 +100,8 @@ if uploaded_file:
     - Q3 adj: {q3_adj}%
     - Q4 adj: {q4_adj}%
 
-    The baseline forecast for the next {months} months is €{base_total:,.0f}.
-    The adjusted forecast is €{future_total:,.0f}, a change of €{delta:,.0f}.
+    The baseline forecast for the next {months} months is €{fcst_2025_base:,.0f}.
+    The adjusted forecast is €{fcst_2025_adjusted:,.0f}, a change of €{delta:,.0f}.
 
     Please summarize the key business implications and provide a CFO-ready narrative based on this short-term outlook.
     """
@@ -107,5 +118,4 @@ if uploaded_file:
     commentary = response.choices[0].message.content
     st.markdown("### :blue_book: AI-Generated Commentary")
     st.write(commentary)
-
 
