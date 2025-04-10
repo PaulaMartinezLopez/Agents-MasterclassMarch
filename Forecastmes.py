@@ -95,23 +95,34 @@ if uploaded_file:
 
     # Summary Table
     st.subheader(":clipboard: Forecast Summary Table")
-    real_2023 = df[df['year'] == 2023]['y'].sum() if 2023 in df['year'].values else 0
-    real_2024 = df[df['year'] == 2024]['y'].sum() if 2024 in df['year'].values else 0
-    gpm_real = (df['y'] * df['gpm']).sum()
+    real_2023_df = df[df['year'] == 2023]
+    real_2024_df = df[df['year'] == 2024]
+
+    real_2023 = real_2023_df['y'].sum() if not real_2023_df.empty else 0
+    real_2024 = real_2024_df['y'].sum() if not real_2024_df.empty else 0
+    gpm_2023 = (real_2023_df['y'] * real_2023_df['gpm']).sum() if not real_2023_df.empty else 0
+    gpm_2024 = (real_2024_df['y'] * real_2024_df['gpm']).sum() if not real_2024_df.empty else 0
+    gpm_pct_2023 = gpm_2023 / real_2023 if real_2023 else 0
+    gpm_pct_2024 = gpm_2024 / real_2024 if real_2024 else 0
 
     fcst_2025_base = forecast_df['y'].sum()
     margin_2025_base = forecast_df['y'].mean() * df['gpm'].mean() * len(forecast_df)
+    gpm_pct_2025_base = margin_2025_base / fcst_2025_base if fcst_2025_base else 0
+
     fcst_2025_adjusted = forecast_df['adjusted_y'].sum()
     margin_2025_adjusted = forecast_df['adjusted_margin'].sum()
+    gpm_pct_2025_adjusted = margin_2025_adjusted / fcst_2025_adjusted if fcst_2025_adjusted else 0
 
     summary_df = pd.DataFrame({
         'Metric': ['2023', '2024', 'Forecast 2025 (base)', 'Forecast 2025 (adjusted)'],
         'Revenue (€)': [real_2023, real_2024, fcst_2025_base, fcst_2025_adjusted],
-        'Gross Margin (€)': [np.nan, np.nan, margin_2025_base, margin_2025_adjusted]
+        'Gross Margin (€)': [gpm_2023, gpm_2024, margin_2025_base, margin_2025_adjusted],
+        'Gross Margin (%)': [gpm_pct_2023, gpm_pct_2024, gpm_pct_2025_base, gpm_pct_2025_adjusted]
     })
 
-    summary_df['Revenue (€)'] = summary_df['Revenue (€)'].apply(lambda x: f"€{x/1_000_000:,.2f}M" if pd.notnull(x) else '')
-    summary_df['Gross Margin (€)'] = summary_df['Gross Margin (€)'].apply(lambda x: f"€{x/1_000_000:,.2f}M" if pd.notnull(x) else '')
+    summary_df['Revenue (€)'] = summary_df['Revenue (€)'].apply(lambda x: f"€{x/1_000_000:,.2f}M")
+    summary_df['Gross Margin (€)'] = summary_df['Gross Margin (€)'].apply(lambda x: f"€{x/1_000_000:,.2f}M")
+    summary_df['Gross Margin (%)'] = summary_df['Gross Margin (%)'].apply(lambda x: f"{x*100:.1f}%")
 
     st.dataframe(summary_df.style.applymap(
         lambda v: 'color: green; font-weight: bold' if 'adjusted' in str(v) else '',
@@ -145,6 +156,7 @@ if uploaded_file:
     commentary = response.choices[0].message.content
     st.markdown("### :blue_book: AI-Generated Commentary")
     st.write(commentary)
+
 
 
 
