@@ -20,8 +20,6 @@ uploaded_file = st.file_uploader("📂 Upload your Excel file with 'Date', 'Reve
 
 if uploaded_file:
     df = pd.read_excel(uploaded_file)
-    st.subheader("🗂️ Preview of Uploaded Data")
-    st.dataframe(df.head())
 
     df.columns = [col.strip().lower() for col in df.columns]
     df = df.rename(columns={'date': 'ds', 'revenue': 'y', '% gpm': 'gpm'})
