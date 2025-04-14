@@ -1,6 +1,28 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+from groq import Groq
+import os
+from dotenv import load_dotenv
+
+# Load API Key
+load_dotenv()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    st.error("❌ API Key is missing! Set it in Streamlit Secrets or a .env file.")
+    st.stop()
+
+st.set_page_config(page_title="Forecasting Agent - Scenario Planner", page_icon=":bar_chart:", layout="wide")
+st.title(":bar_chart: CFO-Friendly Revenue Forecast + Scenario Planner")
+
+uploaded_file = st.file_uploader("📂 Upload your Excel file with 'Date', 'Revenue' and '% GPM' columns", type=["xlsx"])
+
 if uploaded_file:
-    # ==== DATOS ====
     df = pd.read_excel(uploaded_file)
+    st.subheader("🗂️ Preview of Uploaded Data")
+    st.dataframe(df.head())
+
     df.columns = [col.strip().lower() for col in df.columns]
     df = df.rename(columns={'date': 'ds', 'revenue': 'y', '% gpm': 'gpm'})
     df['ds'] = pd.to_datetime(df['ds'])
@@ -8,22 +30,18 @@ if uploaded_file:
     df['month'] = df['ds'].dt.month
     df['year'] = df['ds'].dt.year
 
-    # ==== FORECAST ====
     last_date = df['ds'].max()
     last_month = last_date.month
-
     last_12_months_df = df[df['ds'] >= (last_date - pd.DateOffset(months=12))]
     seasonal_index = last_12_months_df.groupby(last_12_months_df['ds'].dt.month)['y'].mean() / last_12_months_df['y'].mean()
     last_12m_avg = last_12_months_df['y'].mean()
 
-    months = st.slider("📅 Forecast Horizon (in months from next real month)", 1, 12, 6)
+    months = st.slider("📅 Forecast Horizon (in months)", 1, 12, 6)
     future_months = pd.date_range(last_date + pd.offsets.MonthBegin(), periods=months, freq='MS')
-
     forecast_df = pd.DataFrame({'ds': future_months})
     forecast_df['month'] = forecast_df['ds'].dt.month
     forecast_df['y'] = forecast_df['month'].map(seasonal_index) * last_12m_avg
 
-    # ==== SCENARIO PLANNER ====
     trimesters = {
         "Q1": [1, 2, 3],
         "Q2": [4, 5, 6],
@@ -46,7 +64,6 @@ if uploaded_file:
         month = row['ds'].month
         revenue = row['y']
         base_margin = df['gpm'].mean()
-
         for q, months_list in trimesters.items():
             if month in months_list and q in scenario_inputs:
                 rev_adj = scenario_inputs[q]['rev']
@@ -57,13 +74,10 @@ if uploaded_file:
         else:
             adj_y = revenue
             adj_gpm = base_margin
-
         return pd.Series({'adjusted_y': adj_y, 'adjusted_margin': adj_y * adj_gpm})
 
     forecast_df[['adjusted_y', 'adjusted_margin']] = forecast_df.apply(apply_adjustments, axis=1)
 
-    # ==== GRAFICO ====
-    import plotly.graph_objects as go
     st.subheader(":bar_chart: Forecast with Scenario")
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df['ds'], y=df['y'], mode='markers+lines', name='Actuals', line=dict(color='gray')))
@@ -72,7 +86,7 @@ if uploaded_file:
     fig.update_layout(title="Monthly Revenue Forecast (Scenario Model)", xaxis_title="Date", yaxis_title="Revenue", hovermode="x")
     st.plotly_chart(fig, use_container_width=True)
 
-    # ==== RESUMEN 2023-2025 ====
+    st.subheader(":clipboard: Forecast Summary Table")
     real_2023_df = df[df['year'] == 2023]
     real_2024_df = df[df['year'] == 2024]
     real_2025_df = df[(df['ds'].dt.year == 2025) & (df['ds'].dt.month <= 3)]
@@ -116,13 +130,12 @@ if uploaded_file:
     summary_df['Gross Margin (€)'] = summary_df['Gross Margin (€)'].apply(lambda x: f"€{x/1_000_000:,.2f}M")
     summary_df['Gross Margin (%)'] = summary_df['Gross Margin (%)'].apply(lambda x: f"{x*100:.1f}%")
 
-    st.subheader(":clipboard: Forecast Summary Table")
     st.dataframe(summary_df.style.applymap(
         lambda v: 'color: green; font-weight: bold' if 'adjusted' in str(v) else '',
         subset=['Metric']
     ), use_container_width=True)
 
-    # ==== COMENTARIO IA ====
+    # ==== AI COMMENTARY ====
     adjustment_summary = ""
     for q in scenario_inputs:
         rev = scenario_inputs[q]['rev']
@@ -154,7 +167,6 @@ if uploaded_file:
     st.subheader(":robot_face: Executive Commentary")
     st.markdown("### :blue_book: AI-Generated Commentary")
     st.write(commentary)
-
 
 
 
